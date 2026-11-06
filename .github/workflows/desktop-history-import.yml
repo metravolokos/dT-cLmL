@@ -1,6 +1,7 @@
 name: One-time desktop Git history transfer
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - migration/desktop-snapshot-20261106
