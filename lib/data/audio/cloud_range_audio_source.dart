@@ -59,7 +59,6 @@ class CloudRangeAudioSource extends StreamAudioSource {
       try {
         final part = await fetcher(track.path, offset, length);
         if (part.length != length) {
-          onRangeFailure?.call('P12');
           throw StateError('Remote response has unexpected byte count');
         }
         onRangeSuccess?.call();
