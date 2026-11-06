@@ -20,6 +20,7 @@ class PlaybackView {
     this.loading = false,
     this.failed = false,
     this.failureCode,
+    this.cacheFraction,
     this.shuffled = false,
     this.repeatMode = PlayerRepeatMode.off,
   });
@@ -33,6 +34,8 @@ class PlaybackView {
 
   /// Privacy-safe diagnostic classification, never an exception message.
   final String? failureCode;
+  /// Fraction of the current file downloaded to temporary disk, if cached.
+  final double? cacheFraction;
   final bool shuffled;
   final PlayerRepeatMode repeatMode;
 
@@ -51,6 +54,7 @@ class PlaybackView {
     bool? loading,
     bool? failed,
     String? failureCode,
+    double? cacheFraction,
     bool? shuffled,
     PlayerRepeatMode? repeatMode,
   }) => PlaybackView(
@@ -61,6 +65,7 @@ class PlaybackView {
     loading: loading ?? this.loading,
     failed: failed ?? this.failed,
     failureCode: failureCode ?? this.failureCode,
+    cacheFraction: cacheFraction ?? this.cacheFraction,
     shuffled: shuffled ?? this.shuffled,
     repeatMode: repeatMode ?? this.repeatMode,
   );
@@ -116,6 +121,16 @@ class PlaybackController extends Notifier<PlaybackView> {
     hasQueue: _queue != null,
     hasTrack: state.track != null,
   );
+
+  void _onCacheProgress(RemoteTrack track, int downloadedBytes) {
+    if (!_acceptPlaybackEvent || _queue?.current.path != track.path ||
+        state.track?.etag != track.etag ||
+        state.track?.sizeBytes != track.sizeBytes) return;
+    final fraction = track.sizeBytes > 0
+        ? (downloadedBytes / track.sizeBytes).clamp(0.0, 1.0)
+        : 0.0;
+    state = state.withUpdates(cacheFraction: fraction);
+  }
 
   AudioPlayer _ensurePlayer() {
     if (_player != null) return _player!;
@@ -212,6 +227,7 @@ class PlaybackController extends Notifier<PlaybackView> {
                 length,
                 cancellation: cancellation,
               ),
+          onProgress: _onCacheProgress,
         );
         activeCache = await _cacheFuture!;
         await activeCache.configure(track, _queue?.nextForPrefetch());
@@ -261,7 +277,12 @@ class PlaybackController extends Notifier<PlaybackView> {
       }
       // Reflect the user's requested Play immediately. Some backends emit a
       // delayed/duplicate "playing=false" while replacing their source.
-      state = state.withUpdates(playing: true, loading: false, failed: false);
+      state = state.withUpdates(
+        playing: true,
+        loading: false,
+        failed: false,
+        cacheFraction: cache?.fractionFor(track),
+      );
       unawaited(
         player.play().catchError((Object _) {
           if (!_closed && generation == _operationGeneration) {

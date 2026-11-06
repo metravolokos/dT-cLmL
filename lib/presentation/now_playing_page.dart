@@ -157,6 +157,7 @@ class NowPlayingPage extends ConsumerWidget {
                         trackPath: track.path,
                         position: playback.position,
                         duration: playback.duration,
+                        cacheFraction: playback.cacheFraction,
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -269,12 +270,14 @@ class _PlayerSeekBar extends ConsumerStatefulWidget {
     required this.trackPath,
     required this.position,
     required this.duration,
+    this.cacheFraction,
     super.key,
   });
 
   final String trackPath;
   final Duration position;
   final Duration duration;
+  final double? cacheFraction;
 
   @override
   ConsumerState<_PlayerSeekBar> createState() => _PlayerSeekBarState();
@@ -324,6 +327,17 @@ class _PlayerSeekBarState extends ConsumerState<_PlayerSeekBar> {
                 }
               : null,
         ),
+        if (widget.cacheFraction != null)
+          Semantics(
+            label: 'Загрузка текущего трека',
+            value: '${(widget.cacheFraction! * 100).round()}%',
+            child: LinearProgressIndicator(
+              key: const ValueKey('now-playing-cache-progress'),
+              value: widget.cacheFraction!.clamp(0.0, 1.0),
+              minHeight: 3,
+            ),
+          ),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [Text(_time(sliderValue.round())), Text(_time(totalMs))],

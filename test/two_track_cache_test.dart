@@ -50,6 +50,31 @@ void main() {
     expect((await temp.list().toList()).whereType<File>(), hasLength(2));
   });
 
+  test('download progress reports current and promoted next file', () async {
+    final events = <String>[];
+    final tracked = await TwoTrackAudioCache.open(
+      directory: await Directory.systemTemp.createTemp('cache-progress-'),
+      fetch: (path, offset, length, {cancellation}) async => Uint8List(length),
+      onProgress: (track, bytes) => events.add('${track.path}:$bytes'),
+    );
+    try {
+      await tracked.configure(trackA, trackB);
+      for (var i = 0; i < 200 && !tracked.isComplete(trackB); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(tracked.fractionFor(trackA), 1);
+      expect(tracked.fractionFor(trackB), 1);
+      expect(events, contains('A.flac:9500'));
+      expect(events, contains('Б.flac:4800'));
+      await tracked.configure(trackB, trackC);
+      expect(events.lastWhere((x) => x.startsWith('Б.flac:')), 'Б.flac:4800');
+      expect(tracked.fractionFor(trackA), 0);
+      expect(tracked.fractionFor(trackB), 1);
+    } finally {
+      await tracked.close();
+    }
+  });
+
   test('completed track seek is served from disk with no new GET', () async {
     await cache.configure(trackA, trackB);
     await waitFor(trackA);
