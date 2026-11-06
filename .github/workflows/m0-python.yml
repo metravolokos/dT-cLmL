@@ -1,0 +1,19 @@
+name: M0 offline probe tests
+on:
+  push:
+    paths: [ "tools/**", "tests/**", ".github/workflows/m0-python.yml" ]
+  pull_request:
+    paths: [ "tools/**", "tests/**", ".github/workflows/m0-python.yml" ]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -v
+      - run: python -m compileall -q tools tests
+# No live secrets or remote WebDAV requests in CI.
