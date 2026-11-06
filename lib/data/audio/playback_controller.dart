@@ -123,9 +123,12 @@ class PlaybackController extends Notifier<PlaybackView> {
   );
 
   void _onCacheProgress(RemoteTrack track, int downloadedBytes) {
-    if (!_acceptPlaybackEvent || _queue?.current.path != track.path ||
+    if (!_acceptPlaybackEvent ||
+        _queue?.current.path != track.path ||
         state.track?.etag != track.etag ||
-        state.track?.sizeBytes != track.sizeBytes) return;
+        state.track?.sizeBytes != track.sizeBytes) {
+      return;
+    }
     final fraction = track.sizeBytes > 0
         ? (downloadedBytes / track.sizeBytes).clamp(0.0, 1.0)
         : 0.0;
