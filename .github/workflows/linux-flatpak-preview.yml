@@ -1,0 +1,60 @@
+name: Linux GNOME 51 Flatpak preview
+on:
+  pull_request:
+    paths:
+      - .github/workflows/linux-flatpak-preview.yml
+      - packaging/flatpak/**
+      - docs/LINUX_FLATPAK_PREVIEW.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/linux-flatpak-preview.yml
+      - packaging/flatpak/**
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flatpak-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-flatpak-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Linux GTK, secret store and Flatpak build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev libsecret-1-dev elfutils flatpak flatpak-builder dbus
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build linux --release
+      - name: Install GNOME 51 Flatpak SDK
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive -y flathub org.gnome.Sdk//51 org.gnome.Platform//51
+      - name: Package Linux release bundle
+        run: |
+          test -x build/linux/x64/release/bundle/cloudmail_player
+          cp -a build/linux/x64/release/bundle packaging/flatpak/bundle
+          dbus-run-session -- flatpak-builder --user --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/com.cloudmailplayer.cloudmail_player.yml
+          flatpak build-bundle flatpak-repo cloudmail-player-linux-x86_64.flatpak com.cloudmailplayer.cloudmail_player
+          test -s cloudmail-player-linux-x86_64.flatpak
+      - name: Validate exported Flatpak filesystem (not a hardware audio test)
+        run: |
+          flatpak --user install --noninteractive -y ./cloudmail-player-linux-x86_64.flatpak
+          dbus-run-session -- flatpak run --user --command=sh com.cloudmailplayer.cloudmail_player -c 'test -x /app/bin/cloudmail_player && test -f /app/opt/cloudmail-player/data/icudtl.dat'
+          # Inspect ELF runtime libraries inside the actual GNOME sandbox, not the host.
+          dbus-run-session -- flatpak run --user --command=sh com.cloudmailplayer.cloudmail_player -c 'ldd /app/bin/cloudmail_player | tee /tmp/cloudmail-ldd.txt; ! grep -q "not found" /tmp/cloudmail-ldd.txt'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloudmail-player-linux-x86_64-flatpak-preview
+          path: cloudmail-player-linux-x86_64.flatpak
+          if-no-files-found: error
+          retention-days: 14
