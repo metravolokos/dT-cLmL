@@ -1,0 +1,78 @@
+name: One-time desktop Git history transfer
+
+on:
+  push:
+    branches:
+      - migration/desktop-snapshot-20261106
+    paths:
+      - .github/workflows/desktop-history-import.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-time-desktop-history-transfer
+  cancel-in-progress: false
+
+jobs:
+  history-import:
+    if: github.repository == 'metravolokos/dT-cLmL'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out complete destination history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Clone complete public original for pre-import secret review
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-single-branch https://github.com/metravolokos/cloudmail-player-m0.git "$RUNNER_TEMP/source-scan"
+          test -d "$RUNNER_TEMP/source-scan/.git"
+          git -C "$RUNNER_TEMP/source-scan" cat-file -e '2d373369bfe0e7b256dd98534cc90933336e3811^{commit}'
+
+      - name: Independent full-history Gitleaks gate (no secret disclosure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          image='ghcr.io/gitleaks/gitleaks@sha256:507de9682470025fb3e7f57fe4c4ca8263d81369e027b6538b8a252a9c0371d4'
+          docker pull "$image" >/dev/null
+          if ! docker run --rm --network none \
+              -e GIT_CONFIG_COUNT=1 \
+              -e GIT_CONFIG_KEY_0=safe.directory \
+              -e GIT_CONFIG_VALUE_0=/repo \
+              -v "$RUNNER_TEMP/source-scan:/repo:ro" \
+              "$image" git --log-opts="--all" --redact /repo \
+              >"$RUNNER_TEMP/gitleaks-private.log" 2>&1; then
+            echo 'Full-history security scan failed or found possible secrets; import cancelled. Investigate privately.'
+            exit 1
+          fi
+          echo 'Gitleaks history gate passed; no sensitive findings published.'
+
+      - name: Graft original commit graph without changing desktop tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha='2d373369bfe0e7b256dd98534cc90933336e3811'
+          git remote add original https://github.com/metravolokos/cloudmail-player-m0.git
+          git fetch --no-tags original "$source_sha"
+          test "$(git rev-parse FETCH_HEAD)" = "$source_sha"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --allow-unrelated-histories --no-ff -s ours "$source_sha" \
+            -m 'Merge original cloudmail-player-m0 history into desktop migration'
+          git checkout "$source_sha" -- windows/runner/resources/app_icon.ico windows/runner/Runner.rc
+          git commit -m 'Restore unmodified original Windows icon and resource manifest'
+          git log -1 --pretty='%h %s'
+          git cat-file -e "$source_sha^{commit}"
+          test -s windows/runner/resources/app_icon.ico
+
+      - name: Push history-preserving fast-forward to migration branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'migration/desktop-snapshot-20261106'
+          git push origin HEAD:refs/heads/migration/desktop-snapshot-20261106
