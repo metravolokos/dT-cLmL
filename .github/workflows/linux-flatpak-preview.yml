@@ -52,7 +52,7 @@ jobs:
           dbus-run-session -- flatpak run --user --command=sh com.cloudmailplayer.cloudmail_player -c 'test -x /app/bin/cloudmail_player && test -f /app/opt/cloudmail-player/data/icudtl.dat'
           # Inspect ELF runtime libraries inside the actual GNOME sandbox, not the host.
           dbus-run-session -- flatpak run --user --command=sh com.cloudmailplayer.cloudmail_player -c 'ldd /app/bin/cloudmail_player | tee /tmp/cloudmail-ldd.txt; ! grep -q "not found" /tmp/cloudmail-ldd.txt'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cloudmail-player-linux-x86_64-flatpak-preview
           path: cloudmail-player-linux-x86_64.flatpak
