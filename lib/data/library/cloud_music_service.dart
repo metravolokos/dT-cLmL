@@ -314,10 +314,12 @@ class CloudCatalogController extends AsyncNotifier<List<RemoteTrack>> {
     await service.scanMetadata(
       isCancelled: () => _disposed || generation != _generation,
       onStarted: (total) {
-        if (!_disposed) progress.beginMetadata(total);
+        if (!_disposed && generation == _generation) {
+          progress.beginMetadata(total);
+        }
       },
       onProgress: (tracks, done, total) {
-        if (stale()) return;
+        if (_disposed || generation != _generation) return;
         // Each batch is persisted before publication, so interruption leaves
         // a usable catalog and the next launch resumes unindexed records.
         state = AsyncValue.data(tracks);
