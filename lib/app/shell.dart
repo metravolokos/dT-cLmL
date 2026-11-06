@@ -274,7 +274,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
     if (!mounted) return;
     ref.invalidate(cloudMusicServiceProvider);
-    ref.invalidate(cloudCatalogProvider);
+    // Rebuild the catalog notifier *now*, before starting the new import.
+    // invalidate() postpones its disposal/rebuild until the next provider
+    // access/frame; a refresh started on that stale notifier is then lost.
+    ref.refresh(cloudCatalogProvider);
   }
 
   Future<void> _disconnect() async {
