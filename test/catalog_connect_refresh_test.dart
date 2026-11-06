@@ -110,7 +110,10 @@ void main() {
         overrides: [
           cloudConnectionServiceProvider.overrideWithValue(connection),
           cloudMusicServiceProvider.overrideWith(
-            (ref) => _FirstLoginCatalog(() => listingCalls++, () => cacheReads++),
+            (ref) => _FirstLoginCatalog(
+              () => listingCalls++,
+              () => cacheReads++,
+            ),
           ),
         ],
         child: const CloudMailApp(),
