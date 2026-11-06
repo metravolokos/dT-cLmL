@@ -36,6 +36,13 @@ class PlaybackView {
   final bool shuffled;
   final PlayerRepeatMode repeatMode;
 
+  PlaybackView withPlaybackFailure(String fallbackCode) => withUpdates(
+    failed: true,
+    playing: false,
+    loading: false,
+    failureCode: failureCode ?? fallbackCode,
+  );
+
   PlaybackView withUpdates({
     RemoteTrack? track,
     Duration? position,
@@ -342,10 +349,25 @@ class PlaybackController extends Notifier<PlaybackView> {
     }
     final player = _player;
     if (player == null) return;
-    if (player.playing) {
-      await player.pause();
-    } else {
-      unawaited(player.play());
+    final generation = _operationGeneration;
+    void recordFailure() {
+      // Ignore a failed resume if Stop or track replacement happened first.
+      if (!_acceptPlaybackEvent || generation != _operationGeneration) return;
+      state = state.withPlaybackFailure('P02');
+    }
+
+    try {
+      if (player.playing) {
+        await player.pause();
+      } else {
+        unawaited(
+          player.play().catchError((Object _) {
+            recordFailure();
+          }),
+        );
+      }
+    } catch (_) {
+      recordFailure();
     }
   }
 

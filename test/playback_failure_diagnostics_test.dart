@@ -9,6 +9,24 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const track = RemoteTrack(path: 'sample.flac', sizeBytes: 12);
 
+  test('resume error uses P02 unless a native P03 is already known', () {
+    const active = PlaybackView(track: track, playing: true);
+    final failed = active.withPlaybackFailure('P02');
+    expect(failed.failed, isTrue);
+    expect(failed.playing, isFalse);
+    expect(failed.loading, isFalse);
+    expect(failed.failureCode, 'P02');
+
+    const nativeFailure = PlaybackView(
+      track: track,
+      failureCode: 'P03-2-no-data',
+    );
+    expect(
+      nativeFailure.withPlaybackFailure('P02').failureCode,
+      'P03-2-no-data',
+    );
+  });
+
   test('late native events cannot reactivate stopped playback', () {
     expect(
       acceptsPlaybackEvent(
