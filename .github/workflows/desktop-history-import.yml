@@ -1,59 +1,27 @@
-name: One-time desktop Git history transfer
+name: One-time desktop assets restore (no history import)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - migration/desktop-snapshot-20261106
-    paths:
-      - .github/workflows/desktop-history-import.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: one-time-desktop-history-transfer
+  group: desktop-snapshot-asset-restore
   cancel-in-progress: false
 
 jobs:
-  history-import:
-    if: github.repository == 'metravolokos/dT-cLmL'
+  restore-assets:
+    if: github.repository == 'metravolokos/dT-cLmL' && github.ref == 'refs/heads/migration/desktop-snapshot-20261106'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
-      - name: Check out complete destination history
+      - name: Check out destination branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
-
-      - name: Clone complete public original for pre-import secret review
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone --no-single-branch https://github.com/metravolokos/cloudmail-player-m0.git "$RUNNER_TEMP/source-scan"
-          test -d "$RUNNER_TEMP/source-scan/.git"
-          git -C "$RUNNER_TEMP/source-scan" cat-file -e '2d373369bfe0e7b256dd98534cc90933336e3811^{commit}'
-
-      - name: Independent full-history Gitleaks gate (no secret disclosure)
-        shell: bash
-        run: |
-          set -euo pipefail
-          image='ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f'
-          docker pull "$image" >/dev/null
-          if ! docker run --rm --network none \
-              -e GIT_CONFIG_COUNT=1 \
-              -e GIT_CONFIG_KEY_0=safe.directory \
-              -e GIT_CONFIG_VALUE_0=/repo \
-              -v "$RUNNER_TEMP/source-scan:/repo:ro" \
-              "$image" git /repo --redact --no-banner --log-opts="--all" \
-              >"$RUNNER_TEMP/gitleaks-private.log" 2>&1; then
-            echo 'Full-history security scan failed or found possible secrets; import cancelled. Investigate privately.'
-            exit 1
-          fi
-          echo 'Gitleaks history gate passed; no sensitive findings published.'
-
-      - name: Graft original commit graph without changing desktop tree
+      - name: Retrieve only original Windows icon and resource manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -61,23 +29,16 @@ jobs:
           git remote add original https://github.com/metravolokos/cloudmail-player-m0.git
           git fetch --no-tags original "$source_sha"
           test "$(git rev-parse FETCH_HEAD)" = "$source_sha"
+          git checkout "$source_sha" -- windows/runner/resources/app_icon.ico windows/runner/Runner.rc
+          test -s windows/runner/resources/app_icon.ico
+          test "$(git hash-object windows/runner/resources/app_icon.ico)" = 'c04e20caf6370ebb9253ad831cc31de4a9c965f6'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git merge --allow-unrelated-histories --no-ff -s ours "$source_sha" \
-            -m 'Merge original cloudmail-player-m0 history into desktop migration'
-          git checkout "$source_sha" -- windows/runner/resources/app_icon.ico windows/runner/Runner.rc
-          git commit -m 'Restore unmodified original Windows icon and resource manifest'
-          git log -1 --pretty='%h %s'
-          git cat-file -e "$source_sha^{commit}"
-          test -s windows/runner/resources/app_icon.ico
-
-      - name: Push history-preserving fast-forward to migration branch only
+          git add windows/runner/resources/app_icon.ico windows/runner/Runner.rc
+          git diff --cached --quiet || git commit -m 'Restore original Windows icon and RC from frozen source snapshot'
+      - name: Push snapshot-only commit (never import source history)
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'migration/desktop-snapshot-20261106'
           git push origin HEAD:refs/heads/migration/desktop-snapshot-20261106
-
-# Bootstrap trigger after registration on default branch.
-
-# Trigger migration from explicit Git ref update.
