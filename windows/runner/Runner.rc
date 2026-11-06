@@ -52,7 +52,8 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
+// Original ICO temporarily unavailable through GitHub text-only migration.
+// Restore it from the source repo through Git and re-enable before release.
 
 
 /////////////////////////////////////////////////////////////////////////////
