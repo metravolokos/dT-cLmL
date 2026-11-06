@@ -244,8 +244,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       // Connecting is not finished from the user's perspective until the
       // library screen can show the imported files and import progress.
       // The provider is initialized synchronously before refresh starts.
+      // Start the import while this Settings widget is still mounted.
+      // Selecting Tracks unmounts Settings; reading its WidgetRef afterwards
+      // can silently abort the first import until the next app launch.
+      final catalog = ref.read(cloudCatalogProvider.notifier);
+      unawaited(catalog.refresh());
       ref.read(destinationProvider.notifier).select(AppDestination.tracks);
-      unawaited(ref.read(cloudCatalogProvider.notifier).refresh());
     } on CloudMailException catch (error) {
       if (!mounted) return;
       setState(() => _error = error.code);
