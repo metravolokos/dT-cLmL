@@ -9,6 +9,54 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const track = RemoteTrack(path: 'sample.flac', sizeBytes: 12);
 
+  test('late native events cannot reactivate stopped playback', () {
+    expect(
+      acceptsPlaybackEvent(
+        disposed: false,
+        switching: false,
+        hasQueue: false,
+        hasTrack: false,
+      ),
+      isFalse,
+    );
+    expect(
+      acceptsPlaybackEvent(
+        disposed: false,
+        switching: false,
+        hasQueue: false,
+        hasTrack: true,
+      ),
+      isFalse,
+    );
+    expect(
+      acceptsPlaybackEvent(
+        disposed: false,
+        switching: true,
+        hasQueue: true,
+        hasTrack: true,
+      ),
+      isFalse,
+    );
+    expect(
+      acceptsPlaybackEvent(
+        disposed: true,
+        switching: false,
+        hasQueue: true,
+        hasTrack: true,
+      ),
+      isFalse,
+    );
+    expect(
+      acceptsPlaybackEvent(
+        disposed: false,
+        switching: false,
+        hasQueue: true,
+        hasTrack: true,
+      ),
+      isTrue,
+    );
+  });
+
   test('WebDAV error is classified without leaking exception text', () async {
     String? diagnostic;
     final source = CloudRangeAudioSource(
@@ -26,15 +74,15 @@ void main() {
   });
 
   test('unexpected range length has an actionable safe code', () async {
-    String? diagnostic;
+    final diagnostics = <String>[];
     final source = CloudRangeAudioSource(
       track,
       (path, offset, length) async => Uint8List(2),
-      onRangeFailure: (code) => diagnostic = code,
+      onRangeFailure: diagnostics.add,
     );
     final response = await source.request(0, 12);
     await expectLater(response.stream.toList(), throwsA(isA<StateError>()));
-    expect(diagnostic, 'P12');
+    expect(diagnostics, ['P12']);
   });
 
   test(
