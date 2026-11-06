@@ -69,12 +69,16 @@ class _LoginConnection implements CloudConnectionService {
 }
 
 class _FirstLoginCatalog extends CloudMusicService {
-  _FirstLoginCatalog(this.onListing);
+  _FirstLoginCatalog(this.onListing, this.onCacheRead);
 
   final void Function() onListing;
+  final void Function() onCacheRead;
 
   @override
-  Future<List<RemoteTrack>> readCachedCatalog() async => const <RemoteTrack>[];
+  Future<List<RemoteTrack>> readCachedCatalog() async {
+    onCacheRead();
+    return const <RemoteTrack>[];
+  }
 
   @override
   Future<List<RemoteTrack>> loadCatalog({
@@ -100,12 +104,13 @@ void main() {
   ) async {
     final connection = _LoginConnection();
     var listingCalls = 0;
+    var cacheReads = 0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           cloudConnectionServiceProvider.overrideWithValue(connection),
           cloudMusicServiceProvider.overrideWith(
-            (ref) => _FirstLoginCatalog(() => listingCalls++),
+            (ref) => _FirstLoginCatalog(() => listingCalls++, () => cacheReads++),
           ),
         ],
         child: const CloudMailApp(),
@@ -128,7 +133,7 @@ void main() {
 
     expect(connection.connected, isTrue);
     expect(find.byKey(const ValueKey('page-tracks')), findsOneWidget);
-    expect(listingCalls, 1);
+    expect(listingCalls, 1, reason: 'Cached reads: $cacheReads');
     expect(find.text('Первый трек'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
