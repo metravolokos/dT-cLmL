@@ -74,8 +74,7 @@ class _FirstLoginCatalog extends CloudMusicService {
   final void Function() onListing;
 
   @override
-  Future<List<RemoteTrack>> readCachedCatalog() async =>
-      const <RemoteTrack>[];
+  Future<List<RemoteTrack>> readCachedCatalog() async => const <RemoteTrack>[];
 
   @override
   Future<List<RemoteTrack>> loadCatalog({
@@ -129,11 +128,10 @@ void main() {
 
     expect(connection.connected, isTrue);
     expect(find.byKey(const ValueKey('page-tracks')), findsOneWidget);
-    expect(find.text('Первый трек'), findsOneWidget);
     expect(listingCalls, 1);
+    expect(find.text('Первый трек'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-
 
   test(
     'first refresh publishes imported tracks, even immediately after provider creation',
