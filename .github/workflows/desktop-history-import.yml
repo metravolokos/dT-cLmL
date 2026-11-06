@@ -78,3 +78,5 @@ jobs:
           git push origin HEAD:refs/heads/migration/desktop-snapshot-20261106
 
 # Bootstrap trigger after registration on default branch.
+
+# Trigger migration from explicit Git ref update.
