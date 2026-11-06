@@ -23,10 +23,6 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter gen-l10n
-      - name: Show formatting diff
-        run: |
-          dart format test/catalog_connect_refresh_test.dart
-          git diff -- test/catalog_connect_refresh_test.dart
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
