@@ -1,4 +1,4 @@
-name: CloudMail Player — three platforms
+name: dT-cLmL — desktop
 on:
   push:
     branches: [main]
@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: three-platform-${{ github.ref }}
+  group: desktop-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,41 +29,6 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: bash tools/check_layers.sh
 
-  android:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.9'
-          channel: stable
-          cache: true
-      - run: flutter pub get --enforce-lockfile
-      - run: flutter build apk --debug
-      - name: No GMS or Firebase runtime dependencies
-        shell: bash
-        run: |
-          report="$RUNNER_TEMP/gradle-runtime.txt"
-          ./android/gradlew -p android :app:dependencies --configuration debugRuntimeClasspath > "$report"
-          if grep -Eq 'com\.google\.android\.gms:|com\.google\.firebase:' "$report"; then
-            echo 'Prohibited Google runtime dependency'
-            exit 1
-          fi
-          echo 'No GMS/Firebase dependency found'
-      - name: Audit Android release manifest INTERNET permission
-        shell: bash
-        run: |
-          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cloudmail-player-android-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
-
   windows:
     runs-on: windows-latest
     timeout-minutes: 25
@@ -78,7 +43,7 @@ jobs:
       - run: flutter build windows --release
       - uses: actions/upload-artifact@v4
         with:
-          name: cloudmail-player-windows
+          name: dt-clml-windows
           path: build/windows/x64/runner/Release/
 
   linux:
@@ -100,5 +65,5 @@ jobs:
       - run: flutter build linux --release
       - uses: actions/upload-artifact@v4
         with:
-          name: cloudmail-player-linux-x64
+          name: dt-clml-linux-x64
           path: build/linux/x64/release/bundle/
