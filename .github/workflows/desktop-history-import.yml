@@ -76,3 +76,5 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'migration/desktop-snapshot-20261106'
           git push origin HEAD:refs/heads/migration/desktop-snapshot-20261106
+
+# Bootstrap trigger after registration on default branch.
