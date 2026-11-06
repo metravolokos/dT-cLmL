@@ -1,52 +1,30 @@
-# teStPlaYclouDE — agent handover and engineering contract
+# dT-cLmL — desktop engineering and agent handover
 
-**Read before any change:** docs/USER_SPEC_RU.md (full user intent), docs/STATUS.md (facts), docs/ROADMAP.md (next milestones), docs/PUBLIC_REPOSITORY_AUDIT.md (risk register), docs/DECISION_INDEX.md (historical ADRs), docs/RELEASE_AND_LICENSING.md.
+This is the **Windows and Linux only** continuation of https://github.com/metravolokos/cloudmail-player-m0.
+The Android-only successor is https://github.com/metravolokos/aN-cLmL. Never modify or synchronize that repository as part of desktop work.
 
-## Source of truth and naming
+## Sources of truth
 
-- Product/display name **teStPlaYclouDE** (exact capitalization). Existing internal package/application/Flatpak identifiers remain `cloudmail_player` until a separate migration.
-- User communication Russian; implementation, tests, ADRs, commits, and repository documentation English; UI strings from `lib/l10n/app_ru.arb`.
-- Source in `main` is a preview, **not** authenticated real-cloud/device accepted. No fabricated performance, hardware, app-store or GitHub CI outcomes.
-- Historical PRs are evidence, not current work. PR #11 consolidated earlier drafts. See docs/DEVELOPMENT_HISTORY.md. Check actual main/head and current CI before making claims.
+Read `docs/DESKTOP_MIGRATION.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, `docs/USER_SPEC_RU.md` (original historical cross-platform request), `docs/DECISION_INDEX.md`, `docs/DEVELOPMENT_HISTORY.md`, and `docs/RELEASE_AND_LICENSING.md` before work. Use source PR links for rationale, do not invent undocumented decisions.
 
-## Project license decision (owner instruction, 2026-11-06)
+The source snapshot is pinned at `2d373369bfe0e7b256dd98534cc90933336e3811` including Windows P03 diagnostics PR #53. Its historical Git commit graph was **not imported**, because a Gitleaks scan found two potential historical `generic-api-key` matches. The original repository preserves historical commits and review discussions. Do not import that history without private security review and owner approval.
 
-- **No project-wide license has been selected or authorized.** The previously added MIT `LICENSE` was removed at the owner's request. Do not recreate it, add SPDX metadata, describe this project as MIT-licensed or make licensing decisions on the owner's behalf.
-- The historical `docs/USER_SPEC_RU.md` phrase `LICENSE (предложи MIT)` means *propose*, not approval. Preserve that source specification as a historical record; this explicit owner decision supersedes it.
-- Keep third-party notices, attribution and license-compliance checks for dependencies and native packages. Removing our project's LICENSE does not remove their obligations.
+## Desktop-only requirements
 
-## Boundaries
+- Windows 11 x64 is the priority; Linux x86_64 GNOME/Wayland/Flatpak follows.
+- Preserve read-only Cloud Mail.ru WebDAV `/AllMusic`, HTTPS, strict 206 responses, max 64 KiB per Range GET and disabled credential redirects.
+- Preserve SQLite catalog, FLAC/MP3 metadata and artwork, bounded cover/audio caches, one playback controller, system mixer and existing identity/storage identifiers.
+- Windows uses MediaKit/libmpv and SMTC; Linux uses MediaKit/libmpv, MPRIS and Secret Service. Do not reintroduce Android runners or Android media-session startup.
+- Credentials belong in the OS secure store, never in Git, CI logs or test output. Production releases require third-party license audit.
+- **No project-wide LICENSE has been authorized**; do not add one.
 
-- Only Cloud Mail.ru HTTPS WebDAV; fixed `/AllMusic`; requests read-only. Never upload, change or delete music. No redirects with Basic Auth. Each upstream ranged GET <=64 KiB, validate 206, lengths, offsets and both supported Content-Range dialects.
-- Credentials only through the OS-backed secure-store UI. No credentials, private account identifiers, real remote filenames, authenticated URLs, XML dumps or user data in code, tests, issues, CI, commit messages or screenshots. Revoke any exposed credential.
-- No GMS, Firebase, analytics, telemetry, playlists, favorites or EQ.
-- Keep platform integrations in `lib/platform/android`, `windows`, `linux`; avoid platform-specific package imports or `Platform.is*` in domain, shared data and presentation. Keep one PlaybackController and system audio mixer.
-- No mass rewrite, mock-only claim of acceptance, destructive migrations or unbounded cloud/stress tests. Do not silently change fixed constraints.
+## Development procedure
 
-## Small-change process
+1. Check exact current main, open PRs, reported defects and CI.
+2. Use a focused feature branch; document why for nontrivial decisions and preserve source history links.
+3. Run `flutter pub get --enforce-lockfile`, `flutter analyze`, `flutter test`, `python -m unittest discover -s tests -v`, and desktop layer checks.
+4. Require exact-HEAD Quality + Windows release + Linux release CI. Flatpak when affected by Linux packaging.
+5. Test real Windows/Linux sound and actual Cloud Mail login/index/play/pause/seek/next before marking hardware acceptance.
+6. Never confuse green CI with successful live-device audio. Investigate Windows P03 using `docs/PLAYBACK_DIAGNOSTICS.md`.
 
-1. Check current `main`, open PRs, commit history, the exact relevant files and active CI; avoid duplicate work.
-2. Write a short failure hypothesis or feature acceptance gate; create a feature branch from the current main.
-3. Implement one focused change, add regression test for real bug, record rationale in a new **uniquely numbered** ADR where nontrivial. The existing 0006/0007 collisions are historical; do not rename referenced ADR files.
-4. Run formatter, analyzer, relevant unit/contract tests and Quality+Android+Windows+Linux CI for the **exact PR HEAD**. Add platform-specific packaging checks where applicable.
-5. Merge only if all required CI jobs succeed, PR is non-draft, mergeable and HEAD SHA is unchanged; then verify merge on main. Never turn off tests to make green.
-6. Distinguish CI build, sandbox smoke and physical-device/cloud acceptance. Record evidence links, scope and unknowns. Update STATUS/ROADMAP only when facts change.
-7. On actual blocker, record in the audit/issue with exact reproduction, logs sanitized, ownership, next smallest action. Stop repeating failed guesses.
-
-## Repository & developer commands
-
-```sh
-flutter pub get --enforce-lockfile
-flutter gen-l10n
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-python -m unittest discover -s tests -v
-bash tools/check_layers.sh
-```
-
-`flutter build apk --debug` (Android), `flutter build windows --release` (Windows), `flutter build linux --release` (Linux). Windows also needs Rust for `smtc_windows`. No secrets in CI. Platform acceptance instructions: docs/PLATFORMS.md and docs/RELEASE_AND_LICENSING.md.
-
-Before adding dependencies, compare maintainability, supported platforms, GMS independence and licenses; pin exact versions, update the lockfile and ADR. Avoid repeated load/endurance tests unless investigating a measured defect.
-
-Before labeling any item complete, check docs/REQUIREMENTS_TRACEABILITY.md. Use docs/TESTING_MANUAL.md for real hardware checks; do not invent results.
+The old source PRs/issues and original cross-platform spec are historical records; desktop status and roadmap override stale cross-platform action items.

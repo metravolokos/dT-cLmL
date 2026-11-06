@@ -1,22 +1,29 @@
-# Desktop migration tracking — 2026-11-06
+# Desktop migration — final source snapshot record (2026-11-06)
 
-## Immutable source baseline
-- Original: `metravolokos/cloudmail-player-m0` main `2d373369bfe0e7b256dd98534cc90933336e3811` (includes Windows P03 PR #53).
-- Destination: `metravolokos/dT-cLmL`, staging branch `migration/desktop-snapshot-20261106`.
-- Android successor: `metravolokos/aN-cLmL`; do not modify.
-- **Not a full Git-history import**: GitHub connector cannot cross-reference remote Git objects; re-created snapshot commits have different SHA. Do not claim source history was preserved.
+## Repositories and source provenance
+- Source (historical): [cloudmail-player-m0](https://github.com/metravolokos/cloudmail-player-m0), immutable import baseline `2d373369bfe0e7b256dd98534cc90933336e3811`.
+- Desktop successor: [dT-cLmL](https://github.com/metravolokos/dT-cLmL) (Windows/Linux).
+- Independent Android successor: [aN-cLmL](https://github.com/metravolokos/aN-cLmL) (not changed).
+- This is an audited **source snapshot import**, not a complete Git-history import. All non-Android source files, tests, runners, Flutter package files and original Windows ICO from the pinned source are present, except desktop-specific replacements described below.
+- Original PR discussions, issues, commit SHA and architecture history remain in cloudmail-player-m0. See `docs/DEVELOPMENT_HISTORY.md` and `docs/DECISION_INDEX.md`.
 
-## Outstanding release blockers
-1. Use Git-native fetch/push locally to transfer the source's complete commit graph, after an independent full-history secrets scan (open source PR #38). Do not force-update destination main.
-2. Restore all remaining text and binary assets, especially `windows/runner/resources/app_icon.ico`, plus Windows runner C++ and all original docs/tests.
-3. Remove inherited Android-only workflows/tests and Android runtime dependencies, without breaking the desktop build.
-4. Validate `flutter pub get --enforce-lockfile`, analyzer, tests, Windows release bundle and Linux release bundle / Flatpak at exact PR HEAD.
-5. Confirm Windows P03 error diagnosis and real playback on Windows 11; confirm real Linux playback, MPRIS, Secret Service.
-6. Preserve source architectural ADRs and cross-reference source PRs/issues. Desktop-specific decisions require new ADRs.
-7. Project owner has **not** approved any top-level source LICENSE. Preserve third-party notices.
+## Why the commit graph was not transferred
+The original repository's independent [history-scanner PR #38](https://github.com/metravolokos/cloudmail-player-m0/pull/38) reported **two potential `generic-api-key` findings** in historical Git objects. This does not conclusively establish valid keys; it does prevent representing the original full history as safe to republish. The [desktop importer run](https://github.com/metravolokos/dT-cLmL/actions/runs/42224051950) also failed its secret-check gate. Never bypass this gate merely to preserve SHA history; review findings privately and rotate any genuine exposed keys. The desktop snapshot deliberately contains no original history commits.
 
-## Compatibility constraints
-Keep `cloudmail_player` package name, Windows executable name and existing user data/secure-store IDs until migration testing explicitly approves changes. Fixed read-only WebDAV `/AllMusic`, strict 206, <=64 KiB requests and no credential redirects are unchanged.
+## Snapshot comparison
+All original files missing from the desktop tree are Android-specific: Android runner/build resources, Android-only media bridges, Android-only tests and Android ARM64 workflow. Desktop changes relative to source are:
+- `lib/main.dart`: Windows/Linux-only startup and OS bridges
+- `.github/workflows/flutter.yml`: Quality + Windows + Linux only, no Android build
+- `tests/test_public_identity.py`: desktop identity validation only
+- `README.md`, `AGENTS.md`, `docs/STATUS.md`, `docs/ROADMAP.md`: desktop-specific instructions
+- Original Windows ICO and Runner.rc restored at identical pinned source blob SHA
 
-## Merging gate
-Draft PR is intentionally incomplete. Do not mark ready or merge until the above work is accepted. GitHub Actions alone do not prove audible hardware playback.
+## Acceptance separation
+- GitHub CI proves source tests and builds, not actual audio playback or system integration.
+- Windows 11 real-cloud playback, P03 reproduction, SMTC, seek, cache and packaging still need manual acceptance.
+- Linux Wayland/Flatpak/Secret Service/MPRIS and audible playback still need device validation.
+- Do not change stable package name `cloudmail_player` or data/credential storage identifiers without explicit migration/upgrade tests.
+- No project-wide source license has been authorized. Third-party library notices remain mandatory.
+
+## Follow-up
+The one-time restore workflow was only a bootstrap helper. Remove it after source snapshot and CI are accepted. Future PRs belong exclusively in the desktop repository. Do not delete the historical source until provenance and security reviews are resolved.
