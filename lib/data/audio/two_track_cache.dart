@@ -21,19 +21,21 @@ typedef CacheRangeFetch =
 
 /// Keeps only the current and next audio files as temporary storage.
 class TwoTrackAudioCache {
-  TwoTrackAudioCache._(this._directory, this._fetch);
+  TwoTrackAudioCache._(this._directory, this._fetch, this._onProgress);
 
   static const int maximumBytes = 512 * 1024 * 1024;
   static const int rangeBytes = 64 * 1024;
 
   final Directory _directory;
   final CacheRangeFetch _fetch;
+  final void Function(RemoteTrack track, int downloadedBytes)? _onProgress;
   final Map<String, _CacheSlot> _slots = {};
   bool _closed = false;
 
   static Future<TwoTrackAudioCache> open({
     required CacheRangeFetch fetch,
     Directory? directory,
+    void Function(RemoteTrack track, int downloadedBytes)? onProgress,
   }) async {
     final target =
         directory ??
@@ -45,7 +47,7 @@ class TwoTrackAudioCache {
         await entry.delete();
       }
     }
-    return TwoTrackAudioCache._(target, fetch);
+    return TwoTrackAudioCache._(target, fetch, onProgress);
   }
 
   String _key(RemoteTrack track) {
@@ -89,6 +91,7 @@ class TwoTrackAudioCache {
       _slots.putIfAbsent(_key(track), () => _create(track));
     }
     final now = _slots[_key(current)];
+    if (now != null) _onProgress?.call(current, now.downloaded);
     final following = next == null ? null : _slots[_key(next)];
     if (now != null) unawaited(_warmInOrder(now, following));
   }
@@ -134,6 +137,9 @@ class TwoTrackAudioCache {
         }
         await file.writeFrom(bytes);
         slot.downloaded += length;
+        if (!slot.cancelled && !_closed) {
+          _onProgress?.call(slot.track, slot.downloaded);
+        }
         offset += length;
         slot.cancellation = null;
       }
@@ -188,6 +194,14 @@ class TwoTrackAudioCache {
   }
 
   bool isComplete(RemoteTrack track) => _slots[_key(track)]?.complete ?? false;
+
+  /// Progress is scoped by path, ETag and length, not just the track title.
+  double fractionFor(RemoteTrack track) {
+    if (track.sizeBytes <= 0) return 0;
+    final loaded = _slots[_key(track)]?.downloaded ?? 0;
+    return (loaded / track.sizeBytes).clamp(0.0, 1.0);
+  }
+
   int get cachedFileCount => _slots.length;
   int get downloadedBytes =>
       _slots.values.fold<int>(0, (total, slot) => total + slot.downloaded);

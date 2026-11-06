@@ -27,6 +27,12 @@ void main() {
     );
   });
 
+  test('cache progress persists across ordinary playback status updates', () {
+    const initial = PlaybackView(track: track, cacheFraction: 0.65);
+    expect(initial.withUpdates(playing: false).cacheFraction, 0.65);
+    expect(const PlaybackView(track: track).cacheFraction, isNull);
+  });
+
   test('late native events cannot reactivate stopped playback', () {
     expect(
       acceptsPlaybackEvent(
