@@ -1,0 +1,29 @@
+app-id: com.cloudmailplayer.cloudmail_player
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: cloudmail_player
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --talk-name=org.freedesktop.secrets
+  # audio_service_mpris derives its service name from the configured
+  # cloudmail_player.mpris ID and may append a per-process instance suffix.
+  - --own-name=org.mpris.MediaPlayer2.cloudmail_player.mpris.*
+modules:
+  - name: cloudmail-player
+    buildsystem: simple
+    build-commands:
+      - install -d /app/opt/cloudmail-player /app/bin /app/share/applications
+      - cp -a bundle/. /app/opt/cloudmail-player/
+      - ln -s /app/opt/cloudmail-player/cloudmail_player /app/bin/cloudmail_player
+      - install -m644 com.cloudmailplayer.cloudmail_player.desktop /app/share/applications/com.cloudmailplayer.cloudmail_player.desktop
+    sources:
+      - type: dir
+        path: bundle
+        dest: bundle
+      - type: file
+        path: com.cloudmailplayer.cloudmail_player.desktop
