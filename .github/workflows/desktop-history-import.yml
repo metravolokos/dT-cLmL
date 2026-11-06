@@ -38,14 +38,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image='ghcr.io/gitleaks/gitleaks@sha256:507de9682470025fb3e7f57fe4c4ca8263d81369e027b6538b8a252a9c0371d4'
+          image='ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f'
           docker pull "$image" >/dev/null
           if ! docker run --rm --network none \
               -e GIT_CONFIG_COUNT=1 \
               -e GIT_CONFIG_KEY_0=safe.directory \
               -e GIT_CONFIG_VALUE_0=/repo \
               -v "$RUNNER_TEMP/source-scan:/repo:ro" \
-              "$image" git --log-opts="--all" --redact /repo \
+              "$image" git /repo --redact --no-banner --log-opts="--all" \
               >"$RUNNER_TEMP/gitleaks-private.log" 2>&1; then
             echo 'Full-history security scan failed or found possible secrets; import cancelled. Investigate privately.'
             exit 1
