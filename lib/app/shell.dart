@@ -235,7 +235,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             cancellation: cancellation,
           );
       if (!mounted) return;
-      await _resetAccountSession();
+      await _resetAccountSession(forConnection: true);
       if (!mounted) return;
       setState(() {
         _hasSavedCredentials = true;
@@ -244,8 +244,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       // Connecting is not finished from the user's perspective until the
       // library screen can show the imported files and import progress.
       // The provider is initialized synchronously before refresh starts.
+      // Start the import while this Settings widget is still mounted.
+      // Selecting Tracks unmounts Settings; reading its WidgetRef afterwards
+      // can silently abort the first import until the next app launch.
+      final catalog = ref.refresh(cloudCatalogProvider.notifier);
+      unawaited(catalog.refresh());
       ref.read(destinationProvider.notifier).select(AppDestination.tracks);
-      unawaited(ref.read(cloudCatalogProvider.notifier).refresh());
     } on CloudMailException catch (error) {
       if (!mounted) return;
       setState(() => _error = error.code);
@@ -262,7 +266,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void _cancelConnect() => _cancellation?.cancel();
 
   /// Close old authenticated readers when changing or removing credentials.
-  Future<void> _resetAccountSession() async {
+  Future<void> _resetAccountSession({bool forConnection = false}) async {
     try {
       await ref.read(playbackControllerProvider.notifier).stop();
     } catch (_) {
@@ -270,7 +274,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
     if (!mounted) return;
     ref.invalidate(cloudMusicServiceProvider);
-    ref.invalidate(cloudCatalogProvider);
+    // Successful Connect eagerly replaces the catalog using ref.refresh
+    // before starting import. Disconnect only invalidates it.
+    if (!forConnection) ref.invalidate(cloudCatalogProvider);
   }
 
   Future<void> _disconnect() async {

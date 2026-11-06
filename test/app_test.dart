@@ -2,6 +2,8 @@ import 'package:cloudmail_player/app/app.dart';
 import 'package:cloudmail_player/app/state.dart';
 import 'package:cloudmail_player/cloud/cloud_connection_service.dart';
 import 'package:cloudmail_player/cloud/cloud_mail_webdav.dart';
+import 'package:cloudmail_player/data/library/cloud_music_service.dart';
+import 'package:cloudmail_player/domain/remote_track.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,10 +41,30 @@ class _FakeConnectionService implements CloudConnectionService {
   }
 }
 
+class _OfflineCatalog extends CloudMusicService {
+  @override
+  Future<List<RemoteTrack>> readCachedCatalog() async => const <RemoteTrack>[];
+
+  @override
+  Future<List<RemoteTrack>> loadCatalog({
+    void Function(int receivedBytes)? onResponseBytes,
+  }) async => const <RemoteTrack>[];
+
+  @override
+  Future<void> scanMetadata({
+    void Function(List<RemoteTrack> tracks, int done, int total)? onProgress,
+    void Function(int total)? onStarted,
+    bool Function()? isCancelled,
+  }) async {
+    onStarted?.call(0);
+  }
+}
+
 Future<void> launch(
   WidgetTester tester,
   Size size, {
   CloudConnectionService? service,
+  CloudMusicService? musicService,
 }) async {
   final connectionService = service ?? _FakeConnectionService();
   tester.view.devicePixelRatio = 1;
@@ -53,6 +75,8 @@ Future<void> launch(
     ProviderScope(
       overrides: [
         cloudConnectionServiceProvider.overrideWithValue(connectionService),
+        if (musicService != null)
+          cloudMusicServiceProvider.overrideWithValue(musicService),
       ],
       child: const CloudMailApp(),
     ),
@@ -159,7 +183,12 @@ void main() {
     tester,
   ) async {
     final service = _FakeConnectionService();
-    await launch(tester, const Size(390, 844), service: service);
+    await launch(
+      tester,
+      const Size(390, 844),
+      service: service,
+      musicService: _OfflineCatalog(),
+    );
     await tester.tap(find.text('Настройки'));
     await tester.pumpAndSettle();
 

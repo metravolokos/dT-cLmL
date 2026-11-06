@@ -247,10 +247,18 @@ final cloudMusicServiceProvider = Provider<CloudMusicService>((ref) {
 class CloudCatalogController extends AsyncNotifier<List<RemoteTrack>> {
   bool _disposed = false;
   bool _refreshing = false;
+  int _generation = 0;
 
   @override
   List<RemoteTrack> build() {
-    ref.onDispose(() => _disposed = true);
+    // Riverpod may rebuild an AsyncNotifier instance after invalidation.
+    // A disposed generation must not permanently disable the next refresh.
+    final generation = ++_generation;
+    _disposed = false;
+    _refreshing = false;
+    ref.onDispose(() {
+      if (generation == _generation) _disposed = true;
+    });
     // The initial empty state must be synchronous. Otherwise it can complete
     // after the first refresh starts and overwrite the imported file list.
     return const <RemoteTrack>[];
@@ -261,6 +269,8 @@ class CloudCatalogController extends AsyncNotifier<List<RemoteTrack>> {
   Future<void> refresh() async {
     if (_refreshing || _disposed) return;
     _refreshing = true;
+    final generation = _generation;
+    bool stale() => _disposed || generation != _generation;
     final progress = ref.read(catalogImportProgressProvider.notifier);
     final previous = state.asData?.value ?? const <RemoteTrack>[];
     if (previous.isEmpty) state = const AsyncValue.loading();
@@ -269,44 +279,47 @@ class CloudCatalogController extends AsyncNotifier<List<RemoteTrack>> {
     try {
       final service = ref.read(cloudMusicServiceProvider);
       final cached = await service.readCachedCatalog();
-      if (_disposed) return;
+      if (stale()) return;
       if (cached.isNotEmpty) {
         visible = cached;
         state = AsyncValue.data(cached);
       }
       final tracks = await service.loadCatalog(
         onResponseBytes: (received) {
-          if (!_disposed) progress.received(received);
+          if (!stale()) progress.received(received);
         },
       );
-      if (_disposed) return;
+      if (stale()) return;
       // Filenames and sizes become playable immediately, before downloading
       // any FLAC/ID3 tags. SQLite has committed this complete listing.
       visible = tracks;
       state = AsyncValue.data(tracks);
-      await _scanMetadata(service, progress);
-      if (!_disposed) progress.finish();
+      await _scanMetadata(service, progress, generation);
+      if (!stale()) progress.finish();
     } catch (error, trace) {
-      if (_disposed) return;
+      if (stale()) return;
       progress.fail();
       // A network failure must not hide previously saved tracks.
       if (visible.isEmpty) state = AsyncValue.error(error, trace);
     } finally {
-      _refreshing = false;
+      if (!stale()) _refreshing = false;
     }
   }
 
   Future<void> _scanMetadata(
     CloudMusicService service,
     CatalogImportProgressController progress,
+    int generation,
   ) async {
     await service.scanMetadata(
-      isCancelled: () => _disposed,
+      isCancelled: () => _disposed || generation != _generation,
       onStarted: (total) {
-        if (!_disposed) progress.beginMetadata(total);
+        if (!_disposed && generation == _generation) {
+          progress.beginMetadata(total);
+        }
       },
       onProgress: (tracks, done, total) {
-        if (_disposed) return;
+        if (_disposed || generation != _generation) return;
         // Each batch is persisted before publication, so interruption leaves
         // a usable catalog and the next launch resumes unindexed records.
         state = AsyncValue.data(tracks);
