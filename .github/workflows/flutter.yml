@@ -23,6 +23,10 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter gen-l10n
+      - name: Inspect formatting-only diff for desktop cache progress
+        run: |
+          dart format lib/data/audio/playback_controller.dart lib/data/audio/two_track_cache.dart
+          git diff -- lib/data/audio/playback_controller.dart lib/data/audio/two_track_cache.dart
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
