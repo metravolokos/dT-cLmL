@@ -201,6 +201,7 @@ class TwoTrackAudioCache {
     final loaded = _slots[_key(track)]?.downloaded ?? 0;
     return (loaded / track.sizeBytes).clamp(0.0, 1.0);
   }
+
   int get cachedFileCount => _slots.length;
   int get downloadedBytes =>
       _slots.values.fold<int>(0, (total, slot) => total + slot.downloaded);

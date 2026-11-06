@@ -34,6 +34,7 @@ class PlaybackView {
 
   /// Privacy-safe diagnostic classification, never an exception message.
   final String? failureCode;
+
   /// Fraction of the current file downloaded to temporary disk, if cached.
   final double? cacheFraction;
   final bool shuffled;
